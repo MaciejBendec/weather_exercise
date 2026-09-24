@@ -28,7 +28,7 @@ Tests - basic scenarios:
 - [] non-200 response
 - [] invalid cached JSON
 - [] missing or mismatched daily arrays
-- [] all three reports
+- [x] all three reports
 
 Tests - regression:
 - []

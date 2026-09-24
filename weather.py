@@ -64,6 +64,27 @@ def get_data_from_cache(path):
         raise ValueError("Cached file missing weather data")
     return json_dictionary
 
+def check_required_keys(dictionary, keys):
+    """
+        Raises ValueError on missing keys
+    """
+    for key in keys:
+        if key not in dictionary:
+            raise ValueError(f"{key} entry missing in weather data")
+            
+def valid_date(date, date_format):
+    """
+        Validates (True/False) date string according to provided format
+    """
+    if date is None:
+        return False
+    try:
+        datetime.strptime(date, date_format)
+    except ValueError:
+        logging.debug("Failed to parse date: %s", date)
+        return False
+    return True
+
 def report_to_string(report_dict):
     """
     Return the weather summary based on report data:
@@ -71,7 +92,6 @@ def report_to_string(report_dict):
     """
     return f"Total: {report_dict["total"]} | Dry: {report_dict["dry"]} | Rainy: {report_dict["rainy"]} | Rainy-day ratio: {report_dict["ratio"]:.0%}"
 
-#TODO extract validation into separate function as we are approaching high function complexity (radon b/c)
 def create_report(data):
     """
     Return the dictionary with data used in weather report action:
@@ -83,22 +103,14 @@ def create_report(data):
     Raises ValueError if either time or precipation_sum keys is missing
 
     """
-    report = {"total" : 0, "dry" : 0, "rainy" : 0, "ratio" : 0.0}
-    # map the two lists into dictionary
     daily_data = data["daily"]
-    if "time" not in daily_data:
-        raise ValueError("Missing time records in weather data")
-    if "precipitation_sum" not in daily_data:
-        raise ValueError("Missing precipation records in weather data")
+    check_required_keys(daily_data,("time","precipitation_sum"))
+    # map the two lists into dictionary
+    report = {"total" : 0, "dry" : 0, "rainy" : 0, "ratio" : 0.0}
     mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
     #only report data that has valid data and valid precipitation data
     for date, precipitation in mapping:
-        if date is None or precipitation is None:
-            continue
-        try:
-            datetime.strptime(date, DATEFORMAT)
-        except ValueError:
-            logging.debug("Failed to parse date: %s", date)
+        if not valid_date(date, DATEFORMAT) or precipitation is None:
             continue
         try:
             precipitation_value = float(precipitation)
@@ -131,22 +143,14 @@ def create_rainfall_data(data):
 
     """
     daily_data = data["daily"]
-    if "time" not in daily_data:
-        raise ValueError("Missing time records in weather data")
-    if "precipitation_sum" not in daily_data:
-        raise ValueError("Missing precipation records in weather data")
+    check_required_keys(daily_data,("time","precipitation_sum"))
     mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
     # slightly different behaviour - we are to treat missing percipation as 0
     # no note about invalid values, so I'll treat them as 0 too
     total_valid_days = 0
     rainfall_sum = 0
     for date, precipitation in mapping:
-        if date is None:
-            continue
-        try:
-            datetime.strptime(date, DATEFORMAT)
-        except ValueError:
-            logging.debug("Failed to parse date: %s", date)
+        if not valid_date(date, DATEFORMAT):
             continue
         try:
             precipitation_value = float(precipitation)
@@ -166,6 +170,7 @@ def weather_codes_to_string(weather_dict):
     Use unknown if a weather code is missing.
     For equal counts, sort codes alphabetically.
     """
+    # sort primarily by values descending, then by ascending (alphabetical) keys
     sorted_values = sorted(weather_dict.items(), key = lambda item: (-item[1], item[0]))
     codes_output = ""
     for key,value in sorted_values:
@@ -178,19 +183,11 @@ def create_weather_codes_data(data):
 
     """
     daily_data = data["daily"]
-    if "time" not in daily_data:
-        raise ValueError("Missing time records in weather data")
-    if "weather_code" not in daily_data:
-        raise ValueError("Missing weather code records in weather data")
+    check_required_keys(daily_data,("time","weather_code"))
     mapping = itertools.zip_longest(daily_data["time"],daily_data["weather_code"])
     weather_codes = defaultdict(int)
     for date, weather_code in mapping:
-        if date is None:
-            continue
-        try:
-            datetime.strptime(date, DATEFORMAT)
-        except ValueError:
-            logging.debug("Failed to parse date: %s", date)
+        if not valid_date(date, DATEFORMAT):
             continue
         if weather_code is None:
             weather_code = "unknown"

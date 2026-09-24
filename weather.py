@@ -8,25 +8,37 @@ import json
 import argparse
 import pathlib
 import logging
-import requests
 import sys
 import itertools
 from datetime import datetime
 
+import requests
+
 API_URL = "https://archive-api.open-meteo.com/v1/archive"
-CACHE_FILE_PATH = pathlib.Path("weather.json") #TODO this will be relative to workdir, not filedir
+CACHE_FILE_PATH = pathlib.Path("weather.json")
 QUERY = {
     "latitude" : "51.5072",
     "longitude" : "-0.1276",
     "start_date" : "2022-01-01",
-    "end_date" : "2022-01-07", #TODO change to 2022-12-31, smaller now for testing run
+    "end_date" : "2022-12-31", #TODO change to 2022-12-31, smaller now for testing run
     "daily" : "temperature_2m_max,precipitation_sum,weather_code",
     "timezone" : "UTC"}
 
 DATEFORMAT = "%Y-%m-%d"
+ACTIONS = ["report","rainfall","weather_codes"]
 
 def parse_arguments():
-    pass
+    "Parse command line arguments"
+    parser = argparse.ArgumentParser(
+        prog='weather',
+        description='weather.py fetches historical data about London weather from Open-Meteo Archive API')
+    parser.add_argument('--action', choices = ACTIONS, required=True,
+                        help="Action to be performed by script")
+    parser.add_argument('--cache', default=CACHE_FILE_PATH, type=pathlib.Path,
+                        help="Cache file for download of weather data from API")
+    parser.add_argument('--refresh', action='store_true',
+                        help="Ignore current cache contents and replace with data from API")
+    return parser.parse_args()
 
 def get_api_data(path: pathlib.Path):
     """
@@ -55,7 +67,7 @@ def report_to_string(report_dict):
     Return the weather summary based on report data:
     total days | dry days | rainy days | rainy-day ratio as a percentage;
     """
-    return f"Total: {report_dict["total"]} | Dry: {report_dict["dry"]} | Rainy: {report_dict["rainy"]} | Rainy-day ratio: {report_dict["ratio"]:.2%}"
+    return f"Total: {report_dict["total"]} | Dry: {report_dict["dry"]} | Rainy: {report_dict["rainy"]} | Rainy-day ratio: {report_dict["ratio"]:.0%}"
 
 #TODO extract validation into separate function as we are approaching high function complexity (radon b/c)
 def create_report(data):
@@ -104,12 +116,31 @@ def create_report(data):
         report["ratio"] = report["rainy"] / report["total"]
     return report
 
+def rainfall_to_string(rainfall):
+    """
+    Return the rainfall report based on number:
+    Average rainfall per day: X.XX mm
+    """
+    return f"Average rainfall per day: {rainfall:.2}"
 
+def create_rainfall_data(data):
+    """
+    Return the dictionary with data used in weather report action:
 
-#parse_arguments()
+    The denominator must exclude days whose precipitation value is missing or invalid.
+
+    Return the dictionary with 
+
+    Raises ValueError if either time or precipation_sum keys is missing
+
+    """
+
+#
 #if refresh mode or cache file does not exist:
 #TODO base it on parameter from argparse
 if __name__ == '__main__':
+    args = parse_arguments()
+    print(args)
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s") 
     get_api_data(CACHE_FILE_PATH)
     try :

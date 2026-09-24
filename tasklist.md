@@ -15,7 +15,7 @@ TODO list:
 - [] Configure robustness for sending query
 - [] Add robustness to data parsing
 - [] Add 'verbose' parameter and handle it
-- []
+- [] Add parameter parsing
 - []
 - []
 - []

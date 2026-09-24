@@ -204,8 +204,8 @@ if __name__ == '__main__':
                         format="%(levelname)s: %(message)s")
     # get fresh data only if asked for or cache file does not exist
     cache_file = args.cache
-    if not args.refresh and not cache_file.exists():
-        get_api_data(CACHE_FILE_PATH)
+    if args.refresh or not cache_file.exists():
+        get_api_data(cache_file)
     try :
         cached_data = get_data_from_cache(cache_file)
     except json.JSONDecodeError:

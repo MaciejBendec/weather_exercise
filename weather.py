@@ -53,7 +53,7 @@ def get_api_data(path: pathlib.Path):
     # if more retry logic is needed we would need to introduce sessions, httpadapters and retries
     for retry in range(2):
         try:
-            data = requests.get(API_URL, params=QUERY, timeout=15)
+            response = requests.get(API_URL, params=QUERY, timeout=15)
             break
         except Timeout:
             # more natural to see "1 try" that "0 retry"
@@ -61,11 +61,11 @@ def get_api_data(path: pathlib.Path):
             if retry == 1:
                 raise
 
-    if data.status_code != 200:
-        raise HTTPError(f"API request return non-200 status code: {data.status_code}, {data.reason}")
+    if response.status_code != 200:
+        raise HTTPError(f"API request return non-200 status code: {response.status_code}, {response.reason}")
 
     with open(path, 'w', encoding="utf-8") as cache_file:
-        json_string = json.dumps(data.json(), indent=4)
+        json_string = json.dumps(response.json(), indent=4)
         cache_file.write(json_string)
 
 def get_data_from_cache(path):
@@ -221,21 +221,42 @@ def create_weather_codes_data(data):
     logging.debug("create_weather_codes_data finished, processed records: %s", processed_records)
     return dict(weather_codes)
 
+def handle_cache(cache_file, refresh):
+    """
+        Handles cache processing
+        If JSON file exists it's data will be reused, 
+        otherwise new data will be retrieved from API and saved to cache
+        Refresh overrides this behaviour and forces replacing cache_file with new data
+        Does not handle exceptions and pass them to upstream
+    """
+    # get fresh data only if asked for or cache file does not exist
+    if refresh or not cache_file.exists():
+        logging.debug("Refresh requested or cache file does not exist, requesting fresh data and saving to cache")
+        get_api_data(cache_file)
+    else:
+        logging.debug("Cache file found and refresh not requested, reusing data from cache")
+    logging.debug("Cache file path used: %s", cache_file.resolve())
+    cached_data = get_data_from_cache(cache_file)
+    return cached_data
 
-if __name__ == '__main__':
+def main():
+    """
+        General application flow:
+        1. Parse parameters and configure logger
+        2. If refresh is requested or cache data does not exist request is from Weather API and save to cache file
+        3. Retrieve data from cache file
+        4. Based on user input - parse and present data in one of three modes:
+            - report - present a summary of dry and rainy days with ratio
+            - rainfall - show an average daily precipitation
+            - weather-codes - present sorted daily records by Open-Meteo weather_code
+        Function handles gracefully possible JSON/HTTP exceptions, as well as issues in data validation
+
+    """
     args = parse_arguments()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(levelname)s: %(message)s")
     try :
-        cache_file = args.cache
-        # get fresh data only if asked for or cache file does not exist
-        if args.refresh or not cache_file.exists():
-            logging.debug("Refresh requested or cache file does not exist, requesting fresh data and saving to cache")
-            get_api_data(cache_file)
-        else:
-            logging.debug("Cache file found and refresh not requested, reusing data from cache")
-        logging.debug("Cache file path used: %s", cache_file.resolve())
-        cached_data = get_data_from_cache(cache_file)
+        cached_data = handle_cache(args.cache, args.refresh)
     except json.JSONDecodeError as jde:
         logging.error("Cannot parse JSON file in cache.")
         logging.debug(jde)
@@ -275,3 +296,6 @@ if __name__ == '__main__':
         logging.error("Data validation failed.")
         logging.debug(ve)
         sys.exit(2)
+
+if __name__ == '__main__':
+    main()

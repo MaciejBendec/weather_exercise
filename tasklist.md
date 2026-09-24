@@ -12,8 +12,8 @@ TODO list:
 - [x] Implement "rainfall" function
 - [x] Implement "weather-codes"
 - [x] Add caching
-- [] Configure robustness for sending query
-- [] Add robustness to data parsing
+- [x] Configure robustness for sending query
+- [x] Add robustness to data parsing
 - [x] Add 'verbose' parameter and handle it
 - [x] Add parameter parsing
 - []

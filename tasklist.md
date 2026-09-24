@@ -21,13 +21,13 @@ TODO list:
 - []
 
 Tests - basic scenarios:
-- [] successful fetch and cache write
-- [] cache reuse
-- [] --refresh
-- [] timeout then successful retry
-- [] non-200 response
-- [] invalid cached JSON
-- [] missing or mismatched daily arrays
+- [x] successful fetch and cache write
+- [x] cache reuse
+- [x] --refresh
+- [x] timeout then successful retry
+- [x] non-200 response
+- [x] invalid cached JSON
+- [x] missing or mismatched daily arrays
 - [x] all three reports
 
 Tests - regression:
@@ -37,4 +37,10 @@ Tests - regression:
 - []
 
 Additional notes:
-- exercise did only mention returning "weather codes". There is code to condition mapping available in API documentation as "Weather code descriptions as JSON", so "weather-codes" can be potentially exapanded to use it. Only 8 days of "clear sky", sounds like London :)
+- exercise did only mention returning "weather codes". There is code to condition mapping available in API documentation as "Weather code descriptions as JSON", so "weather-codes" can be potentially exapanded to use it, for description and validation. Only 8 days of "clear sky", sounds like London :)
+- a lot of boilerplate in UTs, worth considering some subtests instead
+- reasonable exceptions/scenarios to test - wrong cache filepath, like pointing to directory or file with missing permissions
+- there is weird flow with cache handling:
+    if file not exists -> request from API -> save to file
+    always -> read from cache
+ so as a side effect we read from file data we already have... may need to simplify if I have time

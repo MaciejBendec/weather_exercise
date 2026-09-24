@@ -60,7 +60,6 @@ def get_api_data(path: pathlib.Path):
             logging.debug("HTTP request timed out on %s try", retry+1)
             if retry == 1:
                 raise
-
     if response.status_code != 200:
         raise HTTPError(f"API request return non-200 status code: {response.status_code}, {response.reason}")
 
@@ -137,7 +136,7 @@ def create_report(data):
             elif precipitation_value > 0:
                 report["rainy"] += 1
             else:
-                logging.debug("Invalid precipation value: %s", precipitation)
+                logging.debug("Invalid precipitation value: %s", precipitation)
                 continue
             report["total"] += 1
 
@@ -178,6 +177,10 @@ def create_rainfall_data(data):
             precipitation_value = float(precipitation)
         except (TypeError, ValueError):
             logging.debug("Failed to parse precipitation: %s, treating as 0", precipitation)
+            precipitation_value = 0
+        # while not strictly defined, negative rainfall should not be possible
+        if precipitation_value < 0:
+            logging.debug("Negative precipitation: %s, treating as 0", precipitation)
             precipitation_value = 0
         rainfall_sum += precipitation_value
         total_valid_days += 1
@@ -277,6 +280,12 @@ def main():
     except RequestException as req_exc:
         logging.error("API request failed.")
         logging.debug(req_exc)
+        sys.exit(1)
+    # handle cases like Permission Denied
+    # last because it is ancestor of RequestException
+    except OSError as os_err:
+        logging.error("Cannot open cache file.")
+        logging.debug(os_err)
         sys.exit(1)
 
     # print results depending on mode

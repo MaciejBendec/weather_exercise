@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Weather data - all json files for now as we have no other needs for them
+*.json

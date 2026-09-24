@@ -11,8 +11,9 @@ import logging
 import sys
 import itertools
 from datetime import datetime
-from collections import defaultdict #TODO Counter may also be a good idea 
+from collections import defaultdict
 import requests
+from requests.exceptions import HTTPError,Timeout, RequestException
 
 API_URL = "https://archive-api.open-meteo.com/v1/archive"
 CACHE_FILE_PATH = pathlib.Path("weather.json")
@@ -20,7 +21,7 @@ QUERY = {
     "latitude" : "51.5072",
     "longitude" : "-0.1276",
     "start_date" : "2022-01-01",
-    "end_date" : "2022-12-31", #TODO change to 2022-12-31, smaller now for testing run
+    "end_date" : "2022-12-31",
     "daily" : "temperature_2m_max,precipitation_sum,weather_code",
     "timezone" : "UTC"}
 
@@ -45,10 +46,25 @@ def parse_arguments():
 def get_api_data(path: pathlib.Path):
     """
     Get API data and cache it to file
+    Raises exception if request or JSON parsing fails
+    Retries once if request times out
     """
-    data = requests.get(API_URL, params=QUERY)
+    # we are only retrying once on request
+    # if more retry logic is needed we would need to introduce sessions, httpadapters and retries
+    for retry in range(2):
+        try:
+            data = requests.get(API_URL, params=QUERY, timeout=15)
+            break
+        except Timeout:
+            # more natural to see "1 try" that "0 retry"
+            logging.debug("HTTP request timed out on %s try", retry+1)
+            if retry == 1:
+                raise
+
+    if data.status_code != 200:
+        raise HTTPError(f"API request return non-200 status code: {data.status_code}, {data.reason}")
+
     with open(path, 'w', encoding="utf-8") as cache_file:
-        #TODO pretty print for now, can be removed if it's only cache
         json_string = json.dumps(data.json(), indent=4)
         cache_file.write(json_string)
 
@@ -71,7 +87,7 @@ def check_required_keys(dictionary, keys):
     for key in keys:
         if key not in dictionary:
             raise ValueError(f"{key} entry missing in weather data")
-            
+
 def valid_date(date, date_format):
     """
         Validates (True/False) date string according to provided format
@@ -109,7 +125,9 @@ def create_report(data):
     report = {"total" : 0, "dry" : 0, "rainy" : 0, "ratio" : 0.0}
     mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
     #only report data that has valid data and valid precipitation data
+    processed_records = 0
     for date, precipitation in mapping:
+        processed_records += 1
         if not valid_date(date, DATEFORMAT) or precipitation is None:
             continue
         try:
@@ -128,6 +146,8 @@ def create_report(data):
             continue
     if report["total"] != 0:
         report["ratio"] = report["rainy"] / report["total"]
+
+    logging.debug("create_report finished, processed records: %s", processed_records)
     return report
 
 def rainfall_to_string(rainfall):
@@ -149,7 +169,9 @@ def create_rainfall_data(data):
     # no note about invalid values, so I'll treat them as 0 too
     total_valid_days = 0
     rainfall_sum = 0
+    processed_records = 0
     for date, precipitation in mapping:
+        processed_records += 1
         if not valid_date(date, DATEFORMAT):
             continue
         try:
@@ -159,6 +181,8 @@ def create_rainfall_data(data):
             precipitation_value = 0
         rainfall_sum += precipitation_value
         total_valid_days += 1
+
+    logging.debug("create_rainfall_data finished, processed records: %s", processed_records)
     if total_valid_days == 0:
         return 0.0
     return rainfall_sum/total_valid_days
@@ -186,12 +210,15 @@ def create_weather_codes_data(data):
     check_required_keys(daily_data,("time","weather_code"))
     mapping = itertools.zip_longest(daily_data["time"],daily_data["weather_code"])
     weather_codes = defaultdict(int)
+    processed_records = 0
     for date, weather_code in mapping:
+        processed_records += 1
         if not valid_date(date, DATEFORMAT):
             continue
         if weather_code is None:
             weather_code = "unknown"
         weather_codes[weather_code] += 1
+    logging.debug("create_weather_codes_data finished, processed records: %s", processed_records)
     return dict(weather_codes)
 
 
@@ -199,27 +226,52 @@ if __name__ == '__main__':
     args = parse_arguments()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(levelname)s: %(message)s")
-    # get fresh data only if asked for or cache file does not exist
-    cache_file = args.cache
-    if args.refresh or not cache_file.exists():
-        get_api_data(cache_file)
     try :
+        cache_file = args.cache
+        # get fresh data only if asked for or cache file does not exist
+        if args.refresh or not cache_file.exists():
+            logging.debug("Refresh requested or cache file does not exist, requesting fresh data and saving to cache")
+            get_api_data(cache_file)
+        else:
+            logging.debug("Cache file found and refresh not requested, reusing data from cache")
+        logging.debug("Cache file path used: %s", cache_file.resolve())
         cached_data = get_data_from_cache(cache_file)
-    except json.JSONDecodeError:
-        logging.error("Cannot parse JSON file in cache")
+    except json.JSONDecodeError as jde:
+        logging.error("Cannot parse JSON file in cache.")
+        logging.debug(jde)
         sys.exit(1)
-    except ValueError:
-        logging.error("Failed to get weather data from JSON file")
+    except ValueError as val_exc:
+        logging.error("Failed to get weather data from JSON file.")
+        logging.debug(val_exc)
+        sys.exit(1)
+    except HTTPError as httperror:
+        logging.error("API request returned non-200 return code.")
+        logging.debug(httperror)
+        sys.exit(1)
+    except Timeout as timeout:
+        logging.error("API request timed out.")
+        logging.debug(timeout)
+        sys.exit(1)
+    # catch-all exception provided by requests library
+    except RequestException as req_exc:
+        logging.error("API request failed.")
+        logging.debug(req_exc)
         sys.exit(1)
 
     # print results depending on mode
-    match args.action:
-        case "report":
-            result = create_report(cached_data)
-            print(report_to_string(result))
-        case "rainfall":
-            result = create_rainfall_data(cached_data)
-            print(rainfall_to_string(result))
-        case "weather_codes":
-            result = create_weather_codes_data(cached_data)
-            print(weather_codes_to_string(result))
+    try:
+        logging.debug("Data retrieved successfully, proceeding with action: %s", args.action)
+        match args.action:
+            case "report":
+                result = create_report(cached_data)
+                print(report_to_string(result))
+            case "rainfall":
+                result = create_rainfall_data(cached_data)
+                print(rainfall_to_string(result))
+            case "weather_codes":
+                result = create_weather_codes_data(cached_data)
+                print(weather_codes_to_string(result))
+    except ValueError as ve:
+        logging.error("Data validation failed.")
+        logging.debug(ve)
+        sys.exit(2)

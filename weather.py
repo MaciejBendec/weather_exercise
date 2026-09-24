@@ -88,11 +88,15 @@ def create_report(data):
             continue
         try:
             precipitation_value = float(precipitation)
-            report["total"] += 1
             if precipitation_value == 0:
                 report["dry"] += 1
-            else:
+            elif precipitation_value > 0:
                 report["rainy"] += 1
+            else:
+                logging.debug("Invalid preripation value: %s", precipitation)
+                continue
+            report["total"] += 1
+
         except ValueError:
             logging.debug("Failed to parse precipitation: %s", precipitation)
             continue
@@ -105,17 +109,18 @@ def create_report(data):
 #parse_arguments()
 #if refresh mode or cache file does not exist:
 #TODO base it on parameter from argparse
-logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s") 
-get_api_data(CACHE_FILE_PATH)
-try :
-    cached_data = get_data_from_cache(CACHE_FILE_PATH)
-except json.JSONDecodeError:
-    logging.error("Cannot parse JSON file in cache")
-    sys.exit(1)
-except ValueError:
-    logging.error("Failed to get weather data from JSON file")
-    sys.exit(1)
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s") 
+    get_api_data(CACHE_FILE_PATH)
+    try :
+        cached_data = get_data_from_cache(CACHE_FILE_PATH)
+    except json.JSONDecodeError:
+        logging.error("Cannot parse JSON file in cache")
+        sys.exit(1)
+    except ValueError:
+        logging.error("Failed to get weather data from JSON file")
+        sys.exit(1)
 
-#depending on mode
-result = create_report(cached_data)
-print(report_to_string(result))
+    #depending on mode
+    result = create_report(cached_data)
+    print(report_to_string(result))

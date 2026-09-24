@@ -26,7 +26,7 @@ missing_precipitations = {
     "daily": {
         "time": ["2022-01-01", "2022-01-02"],
         "temperature_2m_max": [12.3, 11.8],
-        "precipitation_sum": [0.0],
+        "precipitation_sum": [1.4],
         "weather_code": [3, 61]
     }
 }
@@ -36,7 +36,7 @@ missing_codes = {
         "time": ["2022-01-01", "2022-01-02"],
         "temperature_2m_max": [12.3, 11.8],
         "precipitation_sum": [0.0, 1.4],
-        "weather_code": [3]
+        "weather_code": [61]
     }
 }
 
@@ -66,6 +66,7 @@ missing_codes_array = {
     }
 }
 
+# this should be caught by get_data_from_cache isntead of action functions
 missing_daily_dict = {
     "timezone": "GMT"
 }

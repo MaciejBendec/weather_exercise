@@ -7,8 +7,8 @@ Goals:
 Api documentation: https://open-meteo.com/en/docs/historical-weather-api
 
 TODO list:
-- [] Create function to send query and just always save data to file without caching
-- [] Implement "report" function
+- [x] Create function to send query and just always save data to file without caching
+- [x] Implement "report" function
 - [] Implement "rainfall" function
 - [] Implement "weather-codes"
 - [] Add caching

@@ -11,7 +11,7 @@ import logging
 import sys
 import itertools
 from datetime import datetime
-
+from collections import defaultdict #TODO Counter may also be a good idea 
 import requests
 
 API_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -38,6 +38,8 @@ def parse_arguments():
                         help="Cache file for download of weather data from API")
     parser.add_argument('--refresh', action='store_true',
                         help="Ignore current cache contents and replace with data from API")
+    parser.add_argument('--verbose', '-v', action='store_true',
+                            help="Enable verbose logging")
     return parser.parse_args()
 
 def get_api_data(path: pathlib.Path):
@@ -105,7 +107,7 @@ def create_report(data):
             elif precipitation_value > 0:
                 report["rainy"] += 1
             else:
-                logging.debug("Invalid preripation value: %s", precipitation)
+                logging.debug("Invalid precipation value: %s", precipitation)
                 continue
             report["total"] += 1
 
@@ -125,26 +127,87 @@ def rainfall_to_string(rainfall):
 
 def create_rainfall_data(data):
     """
-    Return the dictionary with data used in weather report action:
-
-    The denominator must exclude days whose precipitation value is missing or invalid.
-
-    Return the dictionary with 
-
-    Raises ValueError if either time or precipation_sum keys is missing
+    Return average precipitation per valid day. Treat missing precipitation values as 0.
 
     """
+    daily_data = data["daily"]
+    if "time" not in daily_data:
+        raise ValueError("Missing time records in weather data")
+    if "precipitation_sum" not in daily_data:
+        raise ValueError("Missing precipation records in weather data")
+    mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
+    # slightly different behaviour - we are to treat missing percipation as 0
+    # no note about invalid values, so I'll treat them as 0 too
+    total_valid_days = 0
+    rainfall_sum = 0
+    for date, precipitation in mapping:
+        if date is None:
+            continue
+        try:
+            datetime.strptime(date, DATEFORMAT)
+        except ValueError:
+            logging.debug("Failed to parse date: %s", date)
+            continue
+        try:
+            precipitation_value = float(precipitation)
+        except (TypeError, ValueError):
+            logging.debug("Failed to parse precipitation: %s, treating as 0", precipitation)
+            precipitation_value = 0
+        rainfall_sum += precipitation_value
+        total_valid_days += 1
+    if total_valid_days == 0:
+        return 0.0
+    return rainfall_sum/total_valid_days
 
-#
-#if refresh mode or cache file does not exist:
-#TODO base it on parameter from argparse
+def weather_codes_to_string(weather_dict):
+    """
+    Return the weather codes report based on dictionary:
+    Sort descending by count.
+    Use unknown if a weather code is missing.
+    For equal counts, sort codes alphabetically.
+    """
+    sorted_values = sorted(weather_dict.items(), key = lambda item: (-item[1], item[0]))
+    codes_output = ""
+    for key,value in sorted_values:
+        codes_output += f"{key} - {value}\n"
+    return codes_output
+
+def create_weather_codes_data(data):
+    """
+    Return dictionary of weather codes
+
+    """
+    daily_data = data["daily"]
+    if "time" not in daily_data:
+        raise ValueError("Missing time records in weather data")
+    if "weather_code" not in daily_data:
+        raise ValueError("Missing weather code records in weather data")
+    mapping = itertools.zip_longest(daily_data["time"],daily_data["weather_code"])
+    weather_codes = defaultdict(int)
+    for date, weather_code in mapping:
+        if date is None:
+            continue
+        try:
+            datetime.strptime(date, DATEFORMAT)
+        except ValueError:
+            logging.debug("Failed to parse date: %s", date)
+            continue
+        if weather_code is None:
+            weather_code = "unknown"
+        weather_codes[weather_code] += 1
+    return dict(weather_codes)
+
+
 if __name__ == '__main__':
     args = parse_arguments()
-    print(args)
-    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s") 
-    get_api_data(CACHE_FILE_PATH)
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                        format="%(levelname)s: %(message)s")
+    # get fresh data only if asked for or cache file does not exist
+    cache_file = args.cache
+    if not args.refresh and not cache_file.exists():
+        get_api_data(CACHE_FILE_PATH)
     try :
-        cached_data = get_data_from_cache(CACHE_FILE_PATH)
+        cached_data = get_data_from_cache(cache_file)
     except json.JSONDecodeError:
         logging.error("Cannot parse JSON file in cache")
         sys.exit(1)
@@ -152,6 +215,14 @@ if __name__ == '__main__':
         logging.error("Failed to get weather data from JSON file")
         sys.exit(1)
 
-    #depending on mode
-    result = create_report(cached_data)
-    print(report_to_string(result))
+    # print results depending on mode
+    match args.action:
+        case "report":
+            result = create_report(cached_data)
+            print(report_to_string(result))
+        case "rainfall":
+            result = create_rainfall_data(cached_data)
+            print(rainfall_to_string(result))
+        case "weather_codes":
+            result = create_weather_codes_data(cached_data)
+            print(weather_codes_to_string(result))

@@ -9,13 +9,13 @@ Api documentation: https://open-meteo.com/en/docs/historical-weather-api
 TODO list:
 - [x] Create function to send query and just always save data to file without caching
 - [x] Implement "report" function
-- [] Implement "rainfall" function
-- [] Implement "weather-codes"
-- [] Add caching
+- [x] Implement "rainfall" function
+- [x] Implement "weather-codes"
+- [x] Add caching
 - [] Configure robustness for sending query
 - [] Add robustness to data parsing
-- [] Add 'verbose' parameter and handle it
-- [] Add parameter parsing
+- [x] Add 'verbose' parameter and handle it
+- [x] Add parameter parsing
 - []
 - []
 - []
@@ -37,4 +37,4 @@ Tests - regression:
 - []
 
 Additional notes:
-- exercise did only mention returning "weather codes". There is code to condition mapping available in API documentation as "Weather code descriptions as JSON", so "weather-codes" can be potentially exapanded to use it.
+- exercise did only mention returning "weather codes". There is code to condition mapping available in API documentation as "Weather code descriptions as JSON", so "weather-codes" can be potentially exapanded to use it. Only 8 days of "clear sky", sounds like London :)

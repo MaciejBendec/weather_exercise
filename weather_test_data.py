@@ -12,7 +12,7 @@ sunny_day_scenario = {
 }
 
 # missing data scenarions
-# they are symmetrical, more precipacions = less days
+# they are symmetrical, more precipipations = less days
 missing_days = {
     "daily": {
         "time": ["2022-01-01"],
@@ -22,7 +22,7 @@ missing_days = {
     }
 }
 
-missing_precipations = {
+missing_precipitations = {
     "daily": {
         "time": ["2022-01-01", "2022-01-02"],
         "temperature_2m_max": [12.3, 11.8],
@@ -50,31 +50,26 @@ missing_time_array = {
     }
 }
 
-missing_precipation = {
+missing_precipitation_array = {
     "daily": {
         "time": ["2022-01-01", "2022-01-02"],
         "temperature_2m_max": [12.3, 11.8],
-        "precipitation_sum": [0.0, 1.4],
         "weather_code": [3, 61]
     }
 }
 
-missing_time_array = {
+missing_codes_array = {
     "daily": {
         "time": ["2022-01-01", "2022-01-02"],
         "temperature_2m_max": [12.3, 11.8],
         "precipitation_sum": [0.0, 1.4],
-        "weather_code": [3, 61]
     }
 }
 
 missing_daily_dict = {
-    "daily": {
-        "time": ["2022-01-01", "2022-01-02"],
-        "temperature_2m_max": [12.3, 11.8],
-        "precipitation_sum": [0.0, 1.4],
-        "weather_code": [3, 61]
-    }
+    "timezone": "GMT"
 }
 # we can also add "missing temperature" scenario but currently no function use it 
 # so it would be same as "sunny day scenario"
+
+# invalid data scenarios

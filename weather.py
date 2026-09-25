@@ -154,7 +154,7 @@ def rainfall_to_string(rainfall: float) -> str:
     Return the rainfall report based on number:
     Average rainfall per day: X.XX mm
     """
-    return f"Average rainfall per day: {rainfall:.2} mm"
+    return f"Average rainfall per day: {rainfall:.2f} mm"
 
 def create_rainfall_data(data: dict) -> float:
     """

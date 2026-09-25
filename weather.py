@@ -12,6 +12,7 @@ import sys
 import itertools
 from datetime import datetime
 from collections import defaultdict
+from collections.abc import Iterable
 import requests
 from requests.exceptions import HTTPError,Timeout, RequestException
 
@@ -67,7 +68,7 @@ def get_api_data(path: pathlib.Path):
         json_string = json.dumps(response.json(), indent=4)
         cache_file.write(json_string)
 
-def get_data_from_cache(path):
+def get_data_from_cache(path: pathlib.Path) -> dict:
     """
     Get API data from cache
     If cache contains invalid json raise exception
@@ -79,7 +80,7 @@ def get_data_from_cache(path):
         raise ValueError("Cached file missing weather data")
     return json_dictionary
 
-def check_required_keys(dictionary, keys):
+def check_required_keys(dictionary: dict, keys: Iterable[str]):
     """
         Raises ValueError on missing keys
     """
@@ -87,7 +88,7 @@ def check_required_keys(dictionary, keys):
         if key not in dictionary:
             raise ValueError(f"{key} entry missing in weather data")
 
-def valid_date(date, date_format):
+def valid_date(date: str, date_format:str = DATEFORMAT) -> bool:
     """
         Validates (True/False) date string according to provided format
     """
@@ -100,20 +101,20 @@ def valid_date(date, date_format):
         return False
     return True
 
-def report_to_string(report_dict):
+def report_to_string(report_dict: dict) -> str:
     """
     Return the weather summary based on report data:
     total days | dry days | rainy days | rainy-day ratio as a percentage;
     """
     return f"Total: {report_dict["total"]} | Dry: {report_dict["dry"]} | Rainy: {report_dict["rainy"]} | Rainy-day ratio: {report_dict["ratio"]:.0%}"
 
-def create_report(data):
+def create_report(data: dict) -> dict:
     """
     Return the dictionary with data used in weather report action:
 
     The denominator must exclude days whose precipitation value is missing or invalid.
 
-    Return the dictionary with 
+    Return the dictionary with total days, rainy/dry one and ratio of rainy to total
 
     Raises ValueError if either time or precipation_sum keys is missing
 
@@ -127,7 +128,7 @@ def create_report(data):
     processed_records = 0
     for date, precipitation in mapping:
         processed_records += 1
-        if not valid_date(date, DATEFORMAT) or precipitation is None:
+        if not valid_date(date) or precipitation is None:
             continue
         try:
             precipitation_value = float(precipitation)
@@ -149,14 +150,14 @@ def create_report(data):
     logging.debug("create_report finished, processed records: %s", processed_records)
     return report
 
-def rainfall_to_string(rainfall):
+def rainfall_to_string(rainfall: float) -> str:
     """
     Return the rainfall report based on number:
     Average rainfall per day: X.XX mm
     """
     return f"Average rainfall per day: {rainfall:.2}"
 
-def create_rainfall_data(data):
+def create_rainfall_data(data: dict) -> float:
     """
     Return average precipitation per valid day. Treat missing precipitation values as 0.
 
@@ -171,7 +172,7 @@ def create_rainfall_data(data):
     processed_records = 0
     for date, precipitation in mapping:
         processed_records += 1
-        if not valid_date(date, DATEFORMAT):
+        if not valid_date(date):
             continue
         try:
             precipitation_value = float(precipitation)
@@ -190,7 +191,7 @@ def create_rainfall_data(data):
         return 0.0
     return rainfall_sum/total_valid_days
 
-def weather_codes_to_string(weather_dict):
+def weather_codes_to_string(weather_dict: dict[str,int]) -> str:
     """
     Return the weather codes report based on dictionary:
     Sort descending by count.
@@ -204,7 +205,7 @@ def weather_codes_to_string(weather_dict):
         codes_output += f"{key} - {value}\n"
     return codes_output
 
-def create_weather_codes_data(data):
+def create_weather_codes_data(data : dict) -> dict[str, int]:
     """
     Return dictionary of weather codes
 
@@ -216,15 +217,15 @@ def create_weather_codes_data(data):
     processed_records = 0
     for date, weather_code in mapping:
         processed_records += 1
-        if not valid_date(date, DATEFORMAT):
+        if not valid_date(date):
             continue
         if weather_code is None:
             weather_code = "unknown"
-        weather_codes[weather_code] += 1
+        weather_codes[str(weather_code)] += 1
     logging.debug("create_weather_codes_data finished, processed records: %s", processed_records)
     return dict(weather_codes)
 
-def handle_cache(cache_file, refresh):
+def handle_cache(cache_file: pathlib.Path, refresh: bool) -> dict:
     """
         Handles cache processing
         If JSON file exists it's data will be reused, 

@@ -116,13 +116,20 @@ divide_by_zero_precipitation = {
 # improve but for now let's assume that all possible keys are correct
 #invalid_weather_code = 
 
-correct_response = """
-{
-    "daily": {
-        "time": ["2022-01-01", "2022-01-02"],
-        "temperature_2m_max": [12.3, 11.8],
-        "precipitation_sum": [0.0, 1.4],
-        "weather_code": [3, 61]
-    }
-}
+weather_code_to_sort = {"14": 1, "31": 2, "1": 2, "10":3, "200": 2}
+
+weather_code_sorted = """10 - 3
+1 - 2
+200 - 2
+31 - 2
+14 - 1
+"""
+
+weather_code_with_unknown_to_sort = {"14": 1, "31": 2, "1": 2, "10":3, "unknown": 2}
+
+weather_code_with_unknown_sorted = """10 - 3
+1 - 2
+31 - 2
+unknown - 2
+14 - 1
 """

@@ -89,15 +89,15 @@ class TestCreateWeatherCodesData(unittest.TestCase):
 
     def test_sunny_day(self):
         report = weather.create_weather_codes_data(weather_test_data.sunny_day_scenario)
-        self.assertEqual(report, {3: 1, 61: 1})
+        self.assertEqual(report, {"3": 1, "61": 1})
     
     def test_missing_days(self):
         report = weather.create_weather_codes_data(weather_test_data.missing_days)
-        self.assertEqual(report, {3: 1})
+        self.assertEqual(report, {"3": 1})
     
     def test_missing_codes(self):
         report = weather.create_weather_codes_data(weather_test_data.missing_codes)
-        self.assertEqual(report, {61: 1, 'unknown': 1}) # weather code is missing -> unknown
+        self.assertEqual(report, {"61": 1, 'unknown': 1}) # weather code is missing -> unknown
     
     def test_missing_time_array(self):
         with self.assertRaises(ValueError):
@@ -109,7 +109,7 @@ class TestCreateWeatherCodesData(unittest.TestCase):
 
     def test_invalid_dateformat(self):
         report = weather.create_weather_codes_data(weather_test_data.invalid_dateformat)
-        self.assertEqual(report, {3: 1})
+        self.assertEqual(report, {"3": 1})
 
 class TestGetApiData(unittest.TestCase):
     def test_correct_response(self):
@@ -221,6 +221,18 @@ class TestHandleCache(unittest.TestCase):
             weather.handle_cache(cache_file, True)
             self.mock_get_data_from_cache.assert_called_once()
             self.mock_get_api_data.assert_called_once()
+
+class TestWeatherCodesToString(unittest.TestCase):
+    #function has some complicated sorting logic
+    def test_sorting(self):
+        sorted_codes = weather.weather_codes_to_string(
+            weather_test_data.weather_code_to_sort)
+        self.assertEqual(sorted_codes, weather_test_data.weather_code_sorted)
+
+    def test_sorting_with_unknown(self):
+        sorted_codes = weather.weather_codes_to_string(
+            weather_test_data.weather_code_with_unknown_to_sort)
+        self.assertEqual(sorted_codes, weather_test_data.weather_code_with_unknown_sorted)
 
 if __name__ == '__main__':
     unittest.main()

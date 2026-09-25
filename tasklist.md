@@ -44,3 +44,4 @@ Additional notes:
     if file not exists -> request from API -> save to file
     always -> read from cache
  so as a side effect we read from file data we already have... may need to simplify if I have time
+- there was no clear requirement for keys of weather codes so I decided to use strings so we dont run into int <-> str comparison isssues, if mixed keys are OK then logic needs to be moved to sorting

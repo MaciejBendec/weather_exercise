@@ -29,7 +29,7 @@ QUERY = {
 DATEFORMAT = "%Y-%m-%d"
 ACTIONS = ["report","rainfall","weather-codes"]
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     "Parse command line arguments"
     parser = argparse.ArgumentParser(
         prog='weather',
@@ -88,7 +88,7 @@ def check_required_keys(dictionary: dict, keys: Iterable[str]):
         if key not in dictionary:
             raise ValueError(f"{key} entry missing in weather data")
 
-def valid_date(date: str, date_format:str = DATEFORMAT) -> bool:
+def valid_date(date: str | None, date_format:str = DATEFORMAT) -> bool:
     """
         Validates (True/False) date string according to provided format
     """
@@ -116,17 +116,16 @@ def create_report(data: dict) -> dict:
 
     Return the dictionary with total days, rainy/dry one and ratio of rainy to total
 
-    Raises ValueError if either time or precipation_sum keys is missing
+    Raises ValueError if either time or precipitation_sum keys is missing
 
     """
     daily_data = data["daily"]
     check_required_keys(daily_data,("time","precipitation_sum"))
-    # map the two lists into dictionary
     report = {"total" : 0, "dry" : 0, "rainy" : 0, "ratio" : 0.0}
-    mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
+    daily_records = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
     #only report data that has valid data and valid precipitation data
     processed_records = 0
-    for date, precipitation in mapping:
+    for date, precipitation in daily_records:
         processed_records += 1
         if not valid_date(date) or precipitation is None:
             continue
@@ -164,13 +163,13 @@ def create_rainfall_data(data: dict) -> float:
     """
     daily_data = data["daily"]
     check_required_keys(daily_data,("time","precipitation_sum"))
-    mapping = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
+    daily_records = itertools.zip_longest(daily_data["time"],daily_data["precipitation_sum"])
     # slightly different behaviour - we are to treat missing percipation as 0
     # no note about invalid values, so I'll treat them as 0 too
     total_valid_days = 0
     rainfall_sum = 0
     processed_records = 0
-    for date, precipitation in mapping:
+    for date, precipitation in daily_records:
         processed_records += 1
         if not valid_date(date):
             continue
@@ -212,10 +211,10 @@ def create_weather_codes_data(data : dict) -> dict[str, int]:
     """
     daily_data = data["daily"]
     check_required_keys(daily_data,("time","weather_code"))
-    mapping = itertools.zip_longest(daily_data["time"],daily_data["weather_code"])
+    daily_records = itertools.zip_longest(daily_data["time"],daily_data["weather_code"])
     weather_codes = defaultdict(int)
     processed_records = 0
-    for date, weather_code in mapping:
+    for date, weather_code in daily_records:
         processed_records += 1
         if not valid_date(date):
             continue
@@ -228,10 +227,10 @@ def create_weather_codes_data(data : dict) -> dict[str, int]:
 def handle_cache(cache_file: pathlib.Path, refresh: bool) -> dict:
     """
         Handles cache processing
-        If JSON file exists it's data will be reused, 
+        If JSON file exists it will be reused, 
         otherwise new data will be retrieved from API and saved to cache
         Refresh overrides this behaviour and forces replacing cache_file with new data
-        Does not handle exceptions and pass them to upstream
+        Exceptions are propagated to the caller
     """
     # get fresh data only if asked for or cache file does not exist
     if refresh or not cache_file.exists():
@@ -254,7 +253,6 @@ def main():
             - rainfall - show an average daily precipitation
             - weather-codes - present sorted daily records by Open-Meteo weather_code
         Function handles gracefully possible JSON/HTTP exceptions, as well as issues in data validation
-
     """
     args = parse_arguments()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -289,7 +287,6 @@ def main():
         logging.debug(os_err)
         sys.exit(1)
 
-    # print results depending on mode
     try:
         logging.debug("Data retrieved successfully, proceeding with action: %s", args.action)
         match args.action:
@@ -299,7 +296,7 @@ def main():
             case "rainfall":
                 result = create_rainfall_data(cached_data)
                 print(rainfall_to_string(result))
-            case "weather_codes":
+            case "weather-codes":
                 result = create_weather_codes_data(cached_data)
                 print(weather_codes_to_string(result))
     except ValueError as ve:

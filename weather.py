@@ -64,6 +64,8 @@ def get_api_data(path: pathlib.Path):
     if response.status_code != 200:
         raise HTTPError(f"API request return non-200 status code: {response.status_code}, {response.reason}")
 
+    # handle case when directories are provided before file
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding="utf-8") as cache_file:
         json_string = json.dumps(response.json(), indent=4)
         cache_file.write(json_string)

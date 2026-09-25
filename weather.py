@@ -26,7 +26,7 @@ QUERY = {
     "timezone" : "UTC"}
 
 DATEFORMAT = "%Y-%m-%d"
-ACTIONS = ["report","rainfall","weather_codes"]
+ACTIONS = ["report","rainfall","weather-codes"]
 
 def parse_arguments():
     "Parse command line arguments"
